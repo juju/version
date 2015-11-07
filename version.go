@@ -2,64 +2,19 @@
 // Licensed under the AGPLv3, see LICENCE file for details.
 
 // The version package implements version parsing.
-// It also acts as guardian of the current client Juju version number.
 package version
 
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 
-	"github.com/juju/utils/series"
 	"gopkg.in/mgo.v2/bson"
 )
 
-// The presence and format of this constant is very important.
-// The debian/rules build recipe uses this value for the version
-// number of the release package.
-const version = "1.26-alpha2"
-
-// The version that we switched over from old style numbering to new style.
-var switchOverVersion = MustParse("1.19.9")
-
-// osReleaseFile is the name of the file that is read in order to determine
-// the linux type release version.
-var osReleaseFile = "/etc/os-release"
-
-// Current gives the current version of the system.  If the file
-// "FORCE-VERSION" is present in the same directory as the running
-// binary, it will override this.
-var Current = MustParse(version)
-
-var Compiler = runtime.Compiler
-
-func init() {
-	toolsDir := filepath.Dir(os.Args[0])
-	v, err := ioutil.ReadFile(filepath.Join(toolsDir, "FORCE-VERSION"))
-	if err != nil {
-		if !os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "WARNING: cannot read forced version: %v\n", err)
-		}
-		return
-	}
-	Current = MustParse(strings.TrimSpace(string(v)))
-}
-
-// Number represents a juju version.  When bugs are fixed the patch number is
-// incremented; when new features are added the minor number is incremented
-// and patch is reset; and when compatibility is broken the major version is
-// incremented and minor and patch are reset.  The build number is
-// automatically assigned and has no well defined sequence.  If the build
-// number is greater than zero or the tag is non-empty it indicates that the
-// release is still in development.  For versions older than 1.19.3,
-// development releases were indicated by an odd Minor number of any non-zero
-// build number.
+// Number represents a version Number.
 type Number struct {
 	Major int
 	Minor int
@@ -183,8 +138,7 @@ func ParseBinary(s string) (Binary, error) {
 	}
 	v.Series = m[7]
 	v.Arch = m[8]
-	_, err := series.GetOSFromSeries(v.Series)
-	return v, err
+	return v, nil
 }
 
 // Parse parses the version, which is of the form 1.2.3
@@ -318,21 +272,6 @@ func (vp *Number) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	*vp = v
 	return nil
-}
-
-func isOdd(x int) bool {
-	return x%2 != 0
-}
-
-// IsDev returns whether the version represents a development version. A
-// version with a tag or a nonzero build component is considered to be a
-// development version.  Versions older than or equal to 1.19.3 (the switch
-// over time) check for odd minor versions.
-func (v Number) IsDev() bool {
-	if v.Compare(switchOverVersion) <= 0 {
-		return isOdd(v.Minor) || v.Build > 0
-	}
-	return v.Tag != "" || v.Build > 0
 }
 
 // ParseMajorMinor takes an argument of the form "major.minor" and returns ints major and minor.
