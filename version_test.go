@@ -5,7 +5,6 @@ package version_test
 
 import (
 	"encoding/json"
-	"runtime"
 	"strings"
 
 	jc "github.com/juju/testing/checkers"
@@ -13,17 +12,12 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	goyaml "gopkg.in/yaml.v2"
 
-	"github.com/juju/juju/testing"
-	"github.com/juju/juju/version"
+	"github.com/juju/version"
 )
 
-type suite struct {
-	testing.BaseSuite
-}
+type suite struct{}
 
 var _ = gc.Suite(&suite{})
-
-// N.B. The FORCE-VERSION logic is tested in the environs package.
 
 func (*suite) TestCompare(c *gc.C) {
 	cmpTests := []struct {
@@ -76,7 +70,6 @@ var parseTests = []struct {
 	v      string
 	err    string
 	expect version.Number
-	dev    bool
 }{{
 	v: "0.0.0",
 }, {
@@ -88,7 +81,6 @@ var parseTests = []struct {
 }, {
 	v:      "0.1.0",
 	expect: version.Number{Major: 0, Minor: 1, Patch: 0},
-	dev:    true,
 }, {
 	v:      "0.2.3",
 	expect: version.Number{Major: 0, Minor: 2, Patch: 3},
@@ -101,22 +93,18 @@ var parseTests = []struct {
 }, {
 	v:      "10.234.3456.1",
 	expect: version.Number{Major: 10, Minor: 234, Patch: 3456, Build: 1},
-	dev:    true,
 }, {
 	v:      "10.234.3456.64",
 	expect: version.Number{Major: 10, Minor: 234, Patch: 3456, Build: 64},
-	dev:    true,
 }, {
 	v:      "10.235.3456",
 	expect: version.Number{Major: 10, Minor: 235, Patch: 3456},
 }, {
 	v:      "1.21-alpha1",
 	expect: version.Number{Major: 1, Minor: 21, Patch: 1, Tag: "alpha"},
-	dev:    true,
 }, {
 	v:      "1.21-alpha1.1",
 	expect: version.Number{Major: 1, Minor: 21, Patch: 1, Tag: "alpha", Build: 1},
-	dev:    true,
 }, {
 	v:      "1.21.0",
 	expect: version.Number{Major: 1, Minor: 21},
@@ -149,7 +137,6 @@ func (*suite) TestParse(c *gc.C) {
 		} else {
 			c.Assert(err, jc.ErrorIsNil)
 			c.Assert(got, gc.Equals, test.expect)
-			c.Check(got.IsDev(), gc.Equals, test.dev)
 			c.Check(got.String(), gc.Equals, test.v)
 		}
 	}
@@ -225,7 +212,6 @@ func (*suite) TestParseBinary(c *gc.C) {
 		} else {
 			c.Assert(err, jc.ErrorIsNil)
 			c.Assert(got, gc.Equals, expect)
-			c.Check(got.IsDev(), gc.Equals, test.dev)
 		}
 	}
 }
@@ -319,8 +305,4 @@ func (*suite) TestParseMajorMinor(c *gc.C) {
 			c.Check(minor, gc.Equals, test.expectMinor)
 		}
 	}
-}
-
-func (s *suite) TestCompiler(c *gc.C) {
-	c.Assert(version.Compiler, gc.Equals, runtime.Compiler)
 }

@@ -1,18 +1,13 @@
 // Copyright 2012, 2013 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
-// The version package implements version parsing.
-// It also acts as guardian of the current client Juju version number.
+// Package version implements version parsing.
 package version
 
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -20,46 +15,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-// The presence and format of this constant is very important.
-// The debian/rules build recipe uses this value for the version
-// number of the release package.
-const version = "1.26-alpha2"
-
-// The version that we switched over from old style numbering to new style.
-var switchOverVersion = MustParse("1.19.9")
-
-// osReleaseFile is the name of the file that is read in order to determine
-// the linux type release version.
-var osReleaseFile = "/etc/os-release"
-
-// Current gives the current version of the system.  If the file
-// "FORCE-VERSION" is present in the same directory as the running
-// binary, it will override this.
-var Current = MustParse(version)
-
-var Compiler = runtime.Compiler
-
-func init() {
-	toolsDir := filepath.Dir(os.Args[0])
-	v, err := ioutil.ReadFile(filepath.Join(toolsDir, "FORCE-VERSION"))
-	if err != nil {
-		if !os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "WARNING: cannot read forced version: %v\n", err)
-		}
-		return
-	}
-	Current = MustParse(strings.TrimSpace(string(v)))
-}
-
-// Number represents a juju version.  When bugs are fixed the patch number is
-// incremented; when new features are added the minor number is incremented
-// and patch is reset; and when compatibility is broken the major version is
-// incremented and minor and patch are reset.  The build number is
-// automatically assigned and has no well defined sequence.  If the build
-// number is greater than zero or the tag is non-empty it indicates that the
-// release is still in development.  For versions older than 1.19.3,
-// development releases were indicated by an odd Minor number of any non-zero
-// build number.
+// Number represents a version number.
 type Number struct {
 	Major int
 	Minor int
@@ -72,26 +28,25 @@ type Number struct {
 // Please don't change its value.
 var Zero = Number{}
 
-// Binary specifies a binary version of juju.
+// Binary specifies a binary version of juju.v
 type Binary struct {
 	Number
 	Series string
 	Arch   string
 }
 
-func (v Binary) String() string {
-	return fmt.Sprintf("%v-%s-%s", v.Number, v.Series, v.Arch)
+// String returns the string representation of the binary version.
+func (b Binary) String() string {
+	return fmt.Sprintf("%v-%s-%s", b.Number, b.Series, b.Arch)
 }
 
-// GetBSON turns v into a bson.Getter so it can be saved directly
-// on a MongoDB database with mgo.
-func (v Binary) GetBSON() (interface{}, error) {
-	return v.String(), nil
+// GetBSON implements bson.Getter.
+func (b Binary) GetBSON() (interface{}, error) {
+	return b.String(), nil
 }
 
-// SetBSON turns v into a bson.Setter so it can be loaded directly
-// from a MongoDB database with mgo.
-func (vp *Binary) SetBSON(raw bson.Raw) error {
+// SetBSON implements bson.Setter.
+func (b *Binary) SetBSON(raw bson.Raw) error {
 	var s string
 	err := raw.Unmarshal(&s)
 	if err != nil {
@@ -101,15 +56,17 @@ func (vp *Binary) SetBSON(raw bson.Raw) error {
 	if err != nil {
 		return err
 	}
-	*vp = v
+	*b = v
 	return nil
 }
 
-func (v Binary) MarshalJSON() ([]byte, error) {
-	return json.Marshal(v.String())
+// MarshalJSON implements json.Marshaler.
+func (b Binary) MarshalJSON() ([]byte, error) {
+	return json.Marshal(b.String())
 }
 
-func (vp *Binary) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON implements json.Unmarshaler.
+func (b *Binary) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
@@ -118,17 +75,17 @@ func (vp *Binary) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*vp = v
+	*b = v
 	return nil
 }
 
-// MarshalYAML implements yaml.v2.Marshaller interface
-func (v Binary) MarshalYAML() (interface{}, error) {
-	return v.String(), nil
+// MarshalYAML implements yaml.v2.Marshaller interface.
+func (b Binary) MarshalYAML() (interface{}, error) {
+	return b.String(), nil
 }
 
-// UnmarshalYAML implements the yaml.Unmarshaller interface
-func (vp *Binary) UnmarshalYAML(unmarshal func(interface{}) error) error {
+// UnmarshalYAML implements the yaml.Unmarshaller interface.
+func (b *Binary) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var vstr string
 	err := unmarshal(&vstr)
 	if err != nil {
@@ -138,7 +95,7 @@ func (vp *Binary) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return err
 	}
-	*vp = v
+	*b = v
 	return nil
 }
 
@@ -160,11 +117,11 @@ func MustParse(s string) Number {
 // MustParseBinary parses a binary version and panics if it does
 // not parse correctly.
 func MustParseBinary(s string) Binary {
-	v, err := ParseBinary(s)
+	b, err := ParseBinary(s)
 	if err != nil {
 		panic(err)
 	}
-	return v
+	return b
 }
 
 // ParseBinary parses a binary version of the form "1.2.3-series-arch".
@@ -173,18 +130,18 @@ func ParseBinary(s string) (Binary, error) {
 	if m == nil {
 		return Binary{}, fmt.Errorf("invalid binary version %q", s)
 	}
-	var v Binary
-	v.Major = atoi(m[1])
-	v.Minor = atoi(m[2])
-	v.Tag = m[4]
-	v.Patch = atoi(m[5])
+	var b Binary
+	b.Major = atoi(m[1])
+	b.Minor = atoi(m[2])
+	b.Tag = m[4]
+	b.Patch = atoi(m[5])
 	if m[6] != "" {
-		v.Build = atoi(m[6][1:])
+		b.Build = atoi(m[6][1:])
 	}
-	v.Series = m[7]
-	v.Arch = m[8]
-	_, err := series.GetOSFromSeries(v.Series)
-	return v, err
+	b.Series = m[7]
+	b.Arch = m[8]
+	_, err := series.GetOSFromSeries(b.Series)
+	return b, err
 }
 
 // Parse parses the version, which is of the form 1.2.3
@@ -195,15 +152,15 @@ func Parse(s string) (Number, error) {
 	if m == nil {
 		return Number{}, fmt.Errorf("invalid version %q", s)
 	}
-	var v Number
-	v.Major = atoi(m[1])
-	v.Minor = atoi(m[2])
-	v.Tag = m[4]
-	v.Patch = atoi(m[5])
+	var n Number
+	n.Major = atoi(m[1])
+	n.Minor = atoi(m[2])
+	n.Tag = m[4]
+	n.Patch = atoi(m[5])
 	if m[6] != "" {
-		v.Build = atoi(m[6][1:])
+		n.Build = atoi(m[6][1:])
 	}
-	return v, nil
+	return n, nil
 }
 
 // atoi is the same as strconv.Atoi but assumes that
@@ -216,44 +173,46 @@ func atoi(s string) int {
 	return n
 }
 
-func (v Number) String() string {
+// String returns the string representation of this Number.
+func (n Number) String() string {
 	var s string
-	if v.Tag == "" {
-		s = fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+	if n.Tag == "" {
+		s = fmt.Sprintf("%d.%d.%d", n.Major, n.Minor, n.Patch)
 	} else {
-		s = fmt.Sprintf("%d.%d-%s%d", v.Major, v.Minor, v.Tag, v.Patch)
+		s = fmt.Sprintf("%d.%d-%s%d", n.Major, n.Minor, n.Tag, n.Patch)
 	}
-	if v.Build > 0 {
-		s += fmt.Sprintf(".%d", v.Build)
+	if n.Build > 0 {
+		s += fmt.Sprintf(".%d", n.Build)
 	}
 	return s
 }
 
 // Compare returns -1, 0 or 1 depending on whether
-// v is less than, equal to or greater than w.
-func (v Number) Compare(w Number) int {
-	if v == w {
+// n is less than, equal to or greater than other.
+// The comparison compares Major, then Minor, then Patch, then Build, using the first difference as
+func (n Number) Compare(other Number) int {
+	if n == other {
 		return 0
 	}
 	less := false
 	switch {
-	case v.Major != w.Major:
-		less = v.Major < w.Major
-	case v.Minor != w.Minor:
-		less = v.Minor < w.Minor
-	case v.Tag != w.Tag:
+	case n.Major != other.Major:
+		less = n.Major < other.Major
+	case n.Minor != other.Minor:
+		less = n.Minor < other.Minor
+	case n.Tag != other.Tag:
 		switch {
-		case v.Tag == "":
+		case n.Tag == "":
 			less = false
-		case w.Tag == "":
+		case other.Tag == "":
 			less = true
 		default:
-			less = v.Tag < w.Tag
+			less = n.Tag < other.Tag
 		}
-	case v.Patch != w.Patch:
-		less = v.Patch < w.Patch
-	case v.Build != w.Build:
-		less = v.Build < w.Build
+	case n.Patch != other.Patch:
+		less = n.Patch < other.Patch
+	case n.Build != other.Build:
+		less = n.Build < other.Build
 	}
 	if less {
 		return -1
@@ -261,15 +220,13 @@ func (v Number) Compare(w Number) int {
 	return 1
 }
 
-// GetBSON turns v into a bson.Getter so it can be saved directly
-// on a MongoDB database with mgo.
-func (v Number) GetBSON() (interface{}, error) {
-	return v.String(), nil
+// GetBSON implements bson.Getter.
+func (n Number) GetBSON() (interface{}, error) {
+	return n.String(), nil
 }
 
-// SetBSON turns v into a bson.Setter so it can be loaded directly
-// from a MongoDB database with mgo.
-func (vp *Number) SetBSON(raw bson.Raw) error {
+// SetBSON implements bson.Setter.
+func (n *Number) SetBSON(raw bson.Raw) error {
 	var s string
 	err := raw.Unmarshal(&s)
 	if err != nil {
@@ -279,15 +236,17 @@ func (vp *Number) SetBSON(raw bson.Raw) error {
 	if err != nil {
 		return err
 	}
-	*vp = v
+	*n = v
 	return nil
 }
 
-func (v Number) MarshalJSON() ([]byte, error) {
-	return json.Marshal(v.String())
+// MarshalJSON implements json.Marshaler.
+func (n Number) MarshalJSON() ([]byte, error) {
+	return json.Marshal(n.String())
 }
 
-func (vp *Number) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON implements json.Unmarshaler.
+func (n *Number) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
@@ -296,17 +255,17 @@ func (vp *Number) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*vp = v
+	*n = v
 	return nil
 }
 
 // MarshalYAML implements yaml.v2.Marshaller interface
-func (v Number) MarshalYAML() (interface{}, error) {
-	return v.String(), nil
+func (n Number) MarshalYAML() (interface{}, error) {
+	return n.String(), nil
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaller interface
-func (vp *Number) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (n *Number) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var vstr string
 	err := unmarshal(&vstr)
 	if err != nil {
@@ -316,23 +275,8 @@ func (vp *Number) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err != nil {
 		return err
 	}
-	*vp = v
+	*n = v
 	return nil
-}
-
-func isOdd(x int) bool {
-	return x%2 != 0
-}
-
-// IsDev returns whether the version represents a development version. A
-// version with a tag or a nonzero build component is considered to be a
-// development version.  Versions older than or equal to 1.19.3 (the switch
-// over time) check for odd minor versions.
-func (v Number) IsDev() bool {
-	if v.Compare(switchOverVersion) <= 0 {
-		return isOdd(v.Minor) || v.Build > 0
-	}
-	return v.Tag != "" || v.Build > 0
 }
 
 // ParseMajorMinor takes an argument of the form "major.minor" and returns ints major and minor.
