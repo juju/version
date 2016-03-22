@@ -100,8 +100,8 @@ func (b *Binary) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 var (
-	binaryPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(\.|-([a-z]+))(\d{1,9})(\.\d{1,9})?-([^-]+)-([^-]+)$`)
-	numberPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(\.|-([a-z]+))(\d{1,9})(\.\d{1,9})?$`)
+	binaryPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(\.|-(\w+))(\d{1,9})(\.\d{1,9})?-([^-]+)-([^-]+)$`)
+	numberPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(\.|-(\w+))(\d{1,9})(\.\d{1,9})?$`)
 )
 
 // MustParse parses a version and panics if it does
@@ -133,13 +133,13 @@ func ParseBinary(s string) (Binary, error) {
 	var b Binary
 	b.Major = atoi(m[1])
 	b.Minor = atoi(m[2])
-	b.Tag = m[4]
-	b.Patch = atoi(m[5])
-	if m[6] != "" {
-		b.Build = atoi(m[6][1:])
+	b.Tag = m[3]
+	b.Patch = atoi(m[4])
+	if m[5] != "" {
+		b.Build = atoi(m[5][1:])
 	}
-	b.Series = m[7]
-	b.Arch = m[8]
+	b.Series = m[6]
+	b.Arch = m[7]
 	_, err := series.GetOSFromSeries(b.Series)
 	return b, err
 }
@@ -155,10 +155,10 @@ func Parse(s string) (Number, error) {
 	var n Number
 	n.Major = atoi(m[1])
 	n.Minor = atoi(m[2])
-	n.Tag = m[4]
-	n.Patch = atoi(m[5])
-	if m[6] != "" {
-		n.Build = atoi(m[6][1:])
+	n.Tag = m[3]
+	n.Patch = atoi(m[4])
+	if m[5] != "" {
+		n.Build = atoi(m[5][1:])
 	}
 	return n, nil
 }
