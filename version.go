@@ -100,8 +100,8 @@ func (b *Binary) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 var (
-	binaryPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(\.|-(\w+))(\d{1,9})(\.\d{1,9})?-([^-]+)-([^-]+)$`)
-	numberPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(\.|-(\w+))(\d{1,9})(\.\d{1,9})?$`)
+	binaryPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(\.|-([a-z]+))(\d{1,9})(\.\d{1,9})?-([^-]+)-([^-]+)$`)
+	numberPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(\.|-([a-z]+))(\d{1,9})(\.\d{1,9})?$`)
 )
 
 // MustParse parses a version and panics if it does

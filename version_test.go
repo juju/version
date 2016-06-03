@@ -45,14 +45,10 @@ func (*suite) TestCompare(c *gc.C) {
 		{"2.0.0.0", "2.0.0.0", 0},
 		{"2.0.0.1", "2.0.0.0", 1},
 		{"2.0.1.10", "2.0.0.0", 1},
-		{"2.0-_0", "2.0-00", 1},
-		{"2.0-_0", "2.0.0", -1},
-		{"2.0-_0", "2.0-alpha1.0", -1},
-		{"2.0-_0", "1.999.0", 1},
 	}
 
 	for i, test := range cmpTests {
-		c.Logf("test %d", i)
+		c.Logf("test %d: %q == %q", i, test.v1, test.v2)
 		v1, err := version.Parse(test.v1)
 		c.Assert(err, jc.ErrorIsNil)
 		v2, err := version.Parse(test.v2)
@@ -106,6 +102,9 @@ var parseTests = []struct {
 	v:      "1.21-alpha1.1",
 	expect: version.Number{Major: 1, Minor: 21, Patch: 1, Tag: "alpha", Build: 1},
 }, {
+	v:      "1.21-alpha10",
+	expect: version.Number{Major: 1, Minor: 21, Patch: 10, Tag: "alpha"},
+}, {
 	v:      "1.21.0",
 	expect: version.Number{Major: 1, Minor: 21},
 }, {
@@ -126,11 +125,17 @@ var parseTests = []struct {
 }, {
 	v:   "1.21-alpha-dev",
 	err: "invalid version.*",
+}, {
+	v:   "1.21-alpha_dev3",
+	err: "invalid version.*",
+}, {
+	v:   "1.21-alpha123dev3",
+	err: "invalid version.*",
 }}
 
 func (*suite) TestParse(c *gc.C) {
 	for i, test := range parseTests {
-		c.Logf("test %d", i)
+		c.Logf("test %d: %q", i, test.v)
 		got, err := version.Parse(test.v)
 		if test.err != "" {
 			c.Assert(err, gc.ErrorMatches, test.err)
@@ -188,7 +193,7 @@ func (*suite) TestParseBinary(c *gc.C) {
 	}}
 
 	for i, test := range parseBinaryTests {
-		c.Logf("test 1: %d", i)
+		c.Logf("first test, %d: %q", i, test.v)
 		got, err := version.ParseBinary(test.v)
 		if test.err != "" {
 			c.Assert(err, gc.ErrorMatches, test.err)
@@ -199,7 +204,7 @@ func (*suite) TestParseBinary(c *gc.C) {
 	}
 
 	for i, test := range parseTests {
-		c.Logf("test 2: %d", i)
+		c.Logf("second test, %d: %q", i, test.v)
 		v := test.v + "-trusty-amd64"
 		got, err := version.ParseBinary(v)
 		expect := version.Binary{
