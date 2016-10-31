@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/juju/utils/series"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -140,8 +139,7 @@ func ParseBinary(s string) (Binary, error) {
 	}
 	b.Series = m[6]
 	b.Arch = m[7]
-	_, err := series.GetOSFromSeries(b.Series)
-	return b, err
+	return b, nil
 }
 
 // Parse parses the version, which is of the form 1.2.3
