@@ -1,0 +1,40 @@
+name: "Unit Tests"
+on: [push, pull_request]
+jobs:
+
+  test-unit-ubuntu:
+    name: "Unit Tests"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+
+    - name: Set up Go 1.12
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.12
+      id: go
+
+    - name: Set GOPATH
+      # temporary fix
+      # see https://github.com/actions/setup-go/issues/14
+      run: |
+        echo "##[set-env name=GOPATH;]$(dirname $GITHUB_WORKSPACE)"
+        echo "##[add-path]$(dirname $GITHUB_WORKSPACE)/bin"
+      shell: bash
+
+    - name: Checkout
+      uses: actions/checkout@v1
+      with:
+        path: src/github.com/juju/version
+
+    - name: Install Dependencies
+      run: |
+        go get -d -t ./...
+
+    - name: Run Unit Tests
+      run: |
+        go test -v

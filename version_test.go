@@ -295,8 +295,9 @@ func (*suite) TestParseMajorMinor(c *gc.C) {
 		v:   "1.2.3",
 		err: "invalid major.minor version number 1.2.3",
 	}, {
-		v:   "blah",
-		err: `invalid major version number blah: strconv.ParseInt: parsing "blah": invalid syntax`,
+		v: "blah",
+		// NOTE: This error won't match on <=go1.9
+		err: `invalid major version number blah: strconv.Atoi: parsing "blah": invalid syntax`,
 	}}
 
 	for i, test := range parseMajorMinorTests {
