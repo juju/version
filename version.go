@@ -98,9 +98,26 @@ func (b *Binary) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+const (
+	// NumberRegex for matching version strings in the forms:
+	// - 1.2
+	// - 1.2.3
+	// - 1.2.3.4
+	// - 1.2-alpha3
+	// - 1.2-alpha3.4
+	NumberRegex = `(\d{1,9})\.(\d{1,9})(?:\.|-([a-z]+))(\d{1,9})(\.\d{1,9})?`
+	// BinaryRegex for matching binary version strings in the form:
+	// - 1.2-series-arch
+	// - 1.2.3-series-arch
+	// - 1.2.3.4-series-arch
+	// - 1.2-alpha3-series-arch
+	// - 1.2-alpha3.4-series-arch
+	BinaryRegex = NumberRegex + `-([^-]+)-([^-]+)`
+)
+
 var (
-	binaryPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(?:\.|-([a-z]+))(\d{1,9})(\.\d{1,9})?-([^-]+)-([^-]+)$`)
-	numberPat = regexp.MustCompile(`^(\d{1,9})\.(\d{1,9})(?:\.|-([a-z]+))(\d{1,9})(\.\d{1,9})?$`)
+	binaryPat = regexp.MustCompile(`^` + BinaryRegex + `$`)
+	numberPat = regexp.MustCompile(`^` + NumberRegex + `$`)
 )
 
 // MustParse parses a version and panics if it does
