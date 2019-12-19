@@ -294,6 +294,20 @@ func (n *Number) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+// ToPatch returns back a semver Number (Major.Minor.Tag.Patch), without a build
+// attached to the Number.
+// In some scenarios it's prefable to not have the build number to identity a
+// version and instead use a less qualified Number. Being less specific about
+// exactness allows us to be more flexible about compatible with other versions.
+func (n Number) ToPatch() Number {
+	return Number{
+		Major: n.Major,
+		Minor: n.Minor,
+		Patch: n.Patch,
+		Tag:   n.Tag,
+	}
+}
+
 // ParseMajorMinor takes an argument of the form "major.minor" and returns ints major and minor.
 func ParseMajorMinor(vers string) (int, int, error) {
 	parts := strings.Split(vers, ".")
