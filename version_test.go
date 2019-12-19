@@ -62,6 +62,49 @@ func (*suite) TestCompare(c *gc.C) {
 	}
 }
 
+func (*suite) TestCompareAfterPatched(c *gc.C) {
+	cmpTests := []struct {
+		v1, v2  string
+		compare int
+	}{
+		{"1.0.0", "1.0.0", 0},
+		{"01.0.0", "1.0.0", 0},
+		{"10.0.0", "9.0.0", 1},
+		{"1.0.0", "1.0.1", -1},
+		{"1.0.1", "1.0.0", 1},
+		{"1.0.0", "1.1.0", -1},
+		{"1.1.0", "1.0.0", 1},
+		{"1.0.0", "2.0.0", -1},
+		{"1.2-alpha1", "1.2.0", -1},
+		{"1.2-alpha2", "1.2-alpha1", 1},
+		{"1.2-alpha2.1", "1.2-alpha2", 0},
+		{"1.2-alpha2.2", "1.2-alpha2.1", -1},
+		{"1.2-beta1", "1.2-alpha1", 1},
+		{"1.2-beta1", "1.2-alpha2.1", 1},
+		{"1.2-beta1", "1.2.0", -1},
+		{"1.2.1", "1.2.0", 1},
+		{"2.0.0", "1.0.0", 1},
+		{"2.0.0.0", "2.0.0", 0},
+		{"2.0.0.0", "2.0.0.0", 0},
+		{"2.0.0.1", "2.0.0.0", 0},
+		{"2.0.1.10", "2.0.0.0", 1},
+	}
+
+	for i, test := range cmpTests {
+		c.Logf("test %d: %q == %q", i, test.v1, test.v2)
+		v1, err := version.Parse(test.v1)
+		c.Assert(err, jc.ErrorIsNil)
+		v2, err := version.Parse(test.v2)
+		c.Assert(err, jc.ErrorIsNil)
+		compare := v1.ToPatch().Compare(v2)
+		c.Check(compare, gc.Equals, test.compare)
+		// Check that reversing the operands has
+		// the expected result.
+		compare = v2.Compare(v1.ToPatch())
+		c.Check(compare, gc.Equals, -test.compare)
+	}
+}
+
 var parseTests = []struct {
 	v      string
 	err    string
@@ -101,6 +144,9 @@ var parseTests = []struct {
 }, {
 	v:      "1.21-alpha1.1",
 	expect: version.Number{Major: 1, Minor: 21, Patch: 1, Tag: "alpha", Build: 1},
+}, {
+	v:      "1.21-alpha1",
+	expect: version.Number{Major: 1, Minor: 21, Patch: 1, Tag: "alpha", Build: 1}.ToPatch(),
 }, {
 	v:      "1.21-alpha10",
 	expect: version.Number{Major: 1, Minor: 21, Patch: 10, Tag: "alpha"},
@@ -169,6 +215,19 @@ func (*suite) TestParseBinary(c *gc.C) {
 	}{{
 		v:      "1.2.3-trusty-amd64",
 		expect: binaryVersion(1, 2, 3, 0, "", "trusty", "amd64"),
+	}, {
+		v: "1.2-tag3-bionic-amd64",
+		expect: version.Binary{
+			Number: version.Number{
+				Major: 1,
+				Minor: 2,
+				Patch: 3,
+				Build: 4,
+				Tag:   "tag",
+			}.ToPatch(),
+			Series: "bionic",
+			Arch:   "amd64",
+		},
 	}, {
 		v:      "1.2.3.4-trusty-amd64",
 		expect: binaryVersion(1, 2, 3, 4, "", "trusty", "amd64"),
