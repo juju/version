@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/juju/mgo/v2/bson"
 )
 
 // Number represents a version number.
