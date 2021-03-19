@@ -1,4 +1,4 @@
-module github.com/juju/version
+module github.com/juju/version/v2
 
 go 1.14
 
