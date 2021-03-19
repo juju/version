@@ -30,13 +30,13 @@ var Zero = Number{}
 // Binary specifies a binary version of juju.v
 type Binary struct {
 	Number
-	Series string
-	Arch   string
+	Release string
+	Arch    string
 }
 
 // String returns the string representation of the binary version.
 func (b Binary) String() string {
-	return fmt.Sprintf("%v-%s-%s", b.Number, b.Series, b.Arch)
+	return fmt.Sprintf("%v-%s-%s", b.Number, b.Release, b.Arch)
 }
 
 // GetBSON implements bson.Getter.
@@ -107,11 +107,11 @@ const (
 	// - 1.2-alpha3.4
 	NumberRegex = `(\d{1,9})\.(\d{1,9})(?:\.|-([a-z]+))(\d{1,9})(\.\d{1,9})?`
 	// BinaryRegex for matching binary version strings in the form:
-	// - 1.2-series-arch
-	// - 1.2.3-series-arch
-	// - 1.2.3.4-series-arch
-	// - 1.2-alpha3-series-arch
-	// - 1.2-alpha3.4-series-arch
+	// - 1.2-release-arch
+	// - 1.2.3-release-arch
+	// - 1.2.3.4-release-arch
+	// - 1.2-alpha3-release-arch
+	// - 1.2-alpha3.4-release-arch
 	BinaryRegex = NumberRegex + `-([^-]+)-([^-]+)`
 )
 
@@ -154,7 +154,7 @@ func ParseBinary(s string) (Binary, error) {
 	if m[5] != "" {
 		b.Build = atoi(m[5][1:])
 	}
-	b.Series = m[6]
+	b.Release = m[6]
 	b.Arch = m[7]
 	return b, nil
 }
