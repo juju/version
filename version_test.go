@@ -193,6 +193,40 @@ func (*suite) TestParse(c *gc.C) {
 	}
 }
 
+var parseNonStrictTests = []struct {
+	v      string
+	err    string
+	expect string
+}{{
+	v:      "1",
+	expect: "1.0.0",
+}, {
+	v:      "1.2",
+	expect: "1.2.0",
+}, {
+	v:      "1.2-alpha",
+	expect: "1.2-alpha0",
+}, {
+	v:   "1.",
+	err: "invalid version.*",
+}, {
+	v:   "1.2-",
+	err: "invalid version.*",
+}}
+
+func (*suite) TestParseNonStrict(c *gc.C) {
+	for i, test := range parseNonStrictTests {
+		c.Logf("test %d: %q", i, test.v)
+		got, err := version.ParseNonStrict(test.v)
+		if test.err != "" {
+			c.Assert(err, gc.ErrorMatches, test.err)
+		} else {
+			c.Assert(err, jc.ErrorIsNil)
+			c.Check(got.String(), gc.Equals, test.expect)
+		}
+	}
+}
+
 func binaryVersion(major, minor, patch, build int, tag, series, arch string) version.Binary {
 	return version.Binary{
 		Number: version.Number{
