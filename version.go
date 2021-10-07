@@ -6,6 +6,7 @@ package version
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -105,19 +106,20 @@ const (
 	// - 1.2.3.4
 	// - 1.2-alpha3
 	// - 1.2-alpha3.4
-	NumberRegex = `(\d{1,9})\.(\d{1,9})(?:\.|-([a-z]+))(\d{1,9})(\.\d{1,9})?`
+	NumberRegex = `(?P<major>\d{1,9})(\.((?P<minor>\d{1,9})((?:(-((?P<tag>[a-z]+)(?P<patchInTag>\d{1,9})?))|(\.(?P<patch>\d{1,9})))?)(\.(?P<build>\d{1,9}))?))?`
 	// BinaryRegex for matching binary version strings in the form:
 	// - 1.2-release-arch
 	// - 1.2.3-release-arch
 	// - 1.2.3.4-release-arch
 	// - 1.2-alpha3-release-arch
 	// - 1.2-alpha3.4-release-arch
-	BinaryRegex = NumberRegex + `-([^-]+)-([^-]+)`
+	BinaryRegex = NumberRegex + `-(?P<release>[^-]+)-(?P<arch>[^-]+)`
 )
 
 var (
-	binaryPat = regexp.MustCompile(`^` + BinaryRegex + `$`)
-	numberPat = regexp.MustCompile(`^` + NumberRegex + `$`)
+	binaryPat         = regexp.MustCompile(`^` + BinaryRegex + `$`)
+	numberPat         = regexp.MustCompile(`^` + NumberRegex + `$`)
+	errInvalidVersion = errors.New("invalid version")
 )
 
 // MustParse parses a version and panics if it does
@@ -142,40 +144,108 @@ func MustParseBinary(s string) Binary {
 
 // ParseBinary parses a binary version of the form "1.2.3-series-arch".
 func ParseBinary(s string) (Binary, error) {
-	m := binaryPat.FindStringSubmatch(s)
-	if m == nil {
+	groups := captureNamedGroups(s, binaryPat)
+	n := parseVersion(groups, true)
+	if n == nil {
 		return Binary{}, fmt.Errorf("invalid binary version %q", s)
 	}
-	var b Binary
-	b.Major = atoi(m[1])
-	b.Minor = atoi(m[2])
-	b.Tag = m[3]
-	b.Patch = atoi(m[4])
-	if m[5] != "" {
-		b.Build = atoi(m[5][1:])
-	}
-	b.Release = m[6]
-	b.Arch = m[7]
-	return b, nil
+
+	return Binary{
+		Number:  *n,
+		Release: groups["release"],
+		Arch:    groups["arch"],
+	}, nil
 }
 
-// Parse parses the version, which is of the form 1.2.3
-// giving the major, minor and release versions
-// respectively.
+// Parse a version in strict mode. The following version patterns are accepted:
+//  1.2.3       (major, minor, patch)
+//  1.2-tag3    (major, minor, patch, tag)
+//  1.2.3.4     (major, minor, patch, build)
+//  1.2-tag3.4  (major, minor, patch, build)
+//
+// The ParseNonStrict function can be used instead to parse a wider range of
+// version patterns (e.g. major only, major/minor etc.).
 func Parse(s string) (Number, error) {
-	m := numberPat.FindStringSubmatch(s)
-	if m == nil {
-		return Number{}, fmt.Errorf("invalid version %q", s)
+	groups := captureNamedGroups(s, numberPat)
+	if n := parseVersion(groups, true); n != nil {
+		return *n, nil
 	}
+	return Number{}, fmt.Errorf("invalid version %q", s)
+}
+
+// ParseNonStrict attempts to parse a version in non-strict mode. It supports
+// the same patterns as Parse with the addition of some extra patterns that
+// are not considered pure semantic version values.
+//
+// The following version patterns are accepted:
+//  1           (major)
+//  1.2         (major, minor)
+//  1.2.3       (major, minor, patch)
+//  1.2-tag     (major, minor, tag)
+//  1.2-tag3    (major, minor, patch, tag)
+//  1.2.3.4     (major, minor, patch, build)
+//  1.2-tag3.4  (major, minor, patch, build)
+func ParseNonStrict(s string) (Number, error) {
+	groups := captureNamedGroups(s, numberPat)
+	if n := parseVersion(groups, false); n != nil {
+		return *n, nil
+	}
+	return Number{}, fmt.Errorf("invalid version %q", s)
+}
+
+func parseVersion(groups map[string]string, strict bool) *Number {
 	var n Number
-	n.Major = atoi(m[1])
-	n.Minor = atoi(m[2])
-	n.Tag = m[3]
-	n.Patch = atoi(m[4])
-	if m[5] != "" {
-		n.Build = atoi(m[5][1:])
+
+	// Major is always required
+	major := groups["major"]
+	if major == "" {
+		return nil
 	}
-	return n, nil
+	n.Major = atoi(major)
+
+	// Minor is only required in strict mode
+	minor := groups["minor"]
+	if minor == "" && strict {
+		return nil
+	} else if minor != "" {
+		n.Minor = atoi(minor)
+	}
+
+	// Patch is only required in strict mode. However there can be two
+	// possible patch groups depending on whether a tag is specified:
+	// - "patch" captures a standalone patch version (e.g. 1.2.3)
+	// - "patchInTag" captures a patch version as a suffix to tag (e.g. 1.2-tag3)
+	patch := groups["patch"]
+	if patch == "" {
+		patch = groups["patchInTag"] // try the alternative
+	}
+	if patch == "" && strict {
+		return nil
+	} else if patch != "" {
+		n.Patch = atoi(patch)
+	}
+
+	// Tag is always optional
+	n.Tag = groups["tag"]
+
+	// Build is always optional
+	build := groups["build"]
+	if build != "" {
+		n.Build = atoi(build)
+	}
+
+	return &n
+}
+
+func captureNamedGroups(s string, re *regexp.Regexp) map[string]string {
+	match := re.FindStringSubmatch(s)
+
+	results := map[string]string{}
+	groups := re.SubexpNames()
+	for i, name := range match {
+		results[groups[i]] = name
+	}
+	return results
 }
 
 // atoi is the same as strconv.Atoi but assumes that
