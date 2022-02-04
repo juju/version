@@ -10,7 +10,7 @@ import (
 	"github.com/juju/mgo/v2/bson"
 	jc "github.com/juju/testing/checkers"
 	gc "gopkg.in/check.v1"
-	goyaml "gopkg.in/yaml.v2"
+	goyaml "gopkg.in/yaml.v3"
 
 	"github.com/juju/version/v2"
 )
